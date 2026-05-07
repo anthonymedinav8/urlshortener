@@ -84,8 +84,10 @@ def shorten_url():
     conn.close()
 
     return jsonify({"short_code": short_code, "short_url": f"http://localhost:5001/{short_code}"}), 201
-
-if __name__ == '__main__':
+@app.route('/<short_code>', methods=['GET'])
+def redirect_url(short_code):   
+ if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5001)
+    
     
