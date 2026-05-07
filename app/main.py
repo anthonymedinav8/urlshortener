@@ -106,6 +106,30 @@ def redirect_url(short_code):
     conn.close()
 
     return redirect(original_url)
+@app.route('/stats/<short_code>', methods=['GET'])
+def get_stats(short_code):
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT original_url, click_count, created_at FROM urls WHERE short_code = %s", (short_code,))
+    result = cur.fetchone()
+
+    if not result:
+        cur.close()
+        conn.close()
+        return jsonify({"error": "Short code not found"}), 404
+    
+    original_url = result [0]
+    cur.close()
+    conn.close()
+    return jsonify({
+        "short_code": short_code,
+        "original_url": result[0],
+        "click_count": result[1],
+        "created_at": str(result[2]),
+        "short_url": f"http://localhost:5001/{short_code}"
+    }), 200
+
 
 if __name__ == '__main__':
     init_db()
