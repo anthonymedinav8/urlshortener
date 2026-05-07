@@ -84,10 +84,29 @@ def shorten_url():
     conn.close()
 
     return jsonify({"short_code": short_code, "short_url": f"http://localhost:5001/{short_code}"}), 201
+
 @app.route('/<short_code>', methods=['GET'])
-def redirect_url(short_code):   
- if __name__ == '__main__':
+def redirect_url(short_code):
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT original_url FROM urls WHERE short_code = %s", (short_code,))
+    result = cur.fetchone()
+
+    if not result:
+        cur.close()
+        conn.close()
+        return jsonify({"error": "Short code not found"}), 404
+
+    original_url = result[0]
+
+    cur.execute("UPDATE urls SET click_count = click_count + 1 WHERE short_code = %s", (short_code,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return redirect(original_url)
+
+if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5001)
-    
-    
