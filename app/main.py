@@ -23,15 +23,17 @@ def get_db():
 def get_cursor():
     """Context manager ensuring connections/cursors close and commit automatically."""
     conn = get_db()
-    cur = conn.cursor()
     try:
-        yield cur
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
+        cur = conn.cursor()
+        try:
+            yield cur
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
     finally:
-        cur.close()
         conn.close()
 
 def init_db():
@@ -55,7 +57,7 @@ def shorten_url():
     data = request.get_json(silent=True)
     if not data or 'url' not in data:
         return jsonify({"error": "Missing url payload"}), 400
-        
+
     raw_url = data['url'].strip()
     if not raw_url:
         return jsonify({"error": "URL cannot be empty"}), 400
@@ -66,9 +68,9 @@ def shorten_url():
         parsed = urlparse(processed_url)
         if not parsed.scheme or not parsed.netloc:
             return jsonify({"error": "Invalid URL structure"}), 400
-            
+
         normalized_url = parsed._replace(
-            scheme=parsed.scheme.lower(), 
+            scheme=parsed.scheme.lower(),
             netloc=parsed.netloc.lower()
         ).geturl().rstrip('/')
     except Exception:
@@ -85,10 +87,11 @@ def shorten_url():
             }), 200
 
     short_code = None
-    
+
     # Atomic INSERT loop handling UniqueViolation constraints safely
     for _ in range(10):
         candidate = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+
         try:
             with get_cursor() as cur:
                 cur.execute(
@@ -132,7 +135,7 @@ def get_stats(short_code):
 
         if not result:
             return jsonify({"error": "Short code not found"}), 404
-        
+
     return jsonify({
         "short_code": short_code,
         "original_url": result[0],
@@ -143,4 +146,5 @@ def get_stats(short_code):
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5001, threaded=True)
+    
